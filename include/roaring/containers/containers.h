@@ -35,6 +35,8 @@ extern "C" { namespace roaring { namespace internal {
 #define ARRAY_CONTAINER_TYPE 2
 #define RUN_CONTAINER_TYPE 3
 #define SHARED_CONTAINER_TYPE 4
+#define RECURSIVE_CONTAINER_TYPE 5
+#define FLYWEIGHT_CONTAINER_TYPE 6
 
 /**
  * Macros for pairing container type codes, suitable for switch statements.
@@ -46,10 +48,10 @@ extern "C" { namespace roaring { namespace internal {
  *     }
  */
 #define PAIR_CONTAINER_TYPES(type1,type2) \
-    (4 * (type1) + (type2))
+    (6 * (type1) + (type2))
 
 #define CONTAINER_PAIR(name1,name2) \
-    (4 * (name1##_CONTAINER_TYPE) + (name2##_CONTAINER_TYPE))
+    (6 * (name1##_CONTAINER_TYPE) + (name2##_CONTAINER_TYPE))
 
 /**
  * A shared container is a wrapper around a container
@@ -450,6 +452,10 @@ static inline bool container_nonzero_cardinality(
             return array_container_nonzero_cardinality(const_CAST_array(c));
         case RUN_CONTAINER_TYPE:
             return run_container_nonzero_cardinality(const_CAST_run(c));
+        case FLYWEIGHT_CONTAINER_TYPE:
+            return false;
+        case RECURSIVE_CONTAINER_TYPE:
+            return ((recursive_container_t *)c)->size > 0; // TODO
     }
     assert(false);
     __builtin_unreachable();
@@ -816,7 +822,18 @@ static inline container_t *container_and(
                                              CAST_array(result));
             return result;
 
+        case CONTAINER_PAIR(RECURSIVE,RECURSIVE):
+            result = array_container_create();
+            *result_type = ARRAY_CONTAINER_TYPE;
+            return NULL;
+
+        case CONTAINER_PAIR(FLYWEIGHT,FLYWEIGHT):
+            *result_type = FLYWEIGHT_CONTAINER_TYPE;
+            result = (container_t *)c1;
+            return result;
+
         default:
+            printf("[DEBUG] unexpected container type %d %d\n", type1, type2);
             assert(false);
             __builtin_unreachable();
             return NULL;

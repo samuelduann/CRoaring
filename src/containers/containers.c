@@ -49,6 +49,10 @@ void container_free(container_t *c, uint8_t type) {
         case SHARED_CONTAINER_TYPE:
             shared_container_free(CAST_shared(c));
             break;
+        case FLYWEIGHT_CONTAINER_TYPE:
+            break;
+        case RECURSIVE_CONTAINER_TYPE:
+            break; // TODO how to free?
         default:
             assert(false);
             __builtin_unreachable();

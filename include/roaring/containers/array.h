@@ -463,6 +463,15 @@ static inline void array_container_remove_range(array_container_t *array,
   }
 }
 
+typedef struct recursive_container_s {
+    int32_t size;
+    int32_t allocation_size;
+    container_t **containers;  // Use container_t in non-API files!
+    uint16_t *keys;
+    uint8_t *typecodes;
+    uint8_t flags;
+} recursive_container_t;
+
 #ifdef __cplusplus
 } } } // extern "C" { namespace roaring { namespace internal {
 #endif

@@ -3139,6 +3139,64 @@ roaring_bitmap_frozen_view(const char *buf, size_t length) {
     return rb;
 }
 
+void recursive_container_add(roaring_array_t *ra, uint8_t level, uint64_t val){
+    if (level == 3) {
+        printf("[DEBUG] reached level 3\n");
+        return roaring_bitmap_add((roaring_bitmap_t *)ra, (uint32_t)val);
+    }
+
+    const uint16_t hb = (val >> 16*(4-level)) & 0xffff;
+
+    const int i = ra_get_index(ra, hb);
+    uint8_t typecode;
+    if (i >= 0) {
+        // ra_unshare_container_at_index(ra, i); TODO
+        container_t *container =
+            ra_get_container_at_index(ra, i, &typecode);
+        uint8_t newtypecode = typecode;
+
+        if (typecode == FLYWEIGHT_CONTAINER_TYPE) {
+            uint64_t hash_val = (uint64_t)container;
+            if (hash_val != val) {
+                roaring_bitmap_t *b = roaring_bitmap_create();
+                recursive_container_add(&b->high_low_container, level + 1, val);
+                recursive_container_add(&b->high_low_container, level + 1, hash_val);
+                ra_set_container_at_index(ra, i,
+                                          (container_t *)&b->high_low_container,
+                                          RECURSIVE_CONTAINER_TYPE);
+            }
+        } else {
+            recursive_container_add((roaring_array_t *)container, level + 1, val);
+        }
+    } else {
+        ra_insert_new_key_value_at(ra, -i - 1, hb,
+                                   (container_t *)val, FLYWEIGHT_CONTAINER_TYPE);
+    }
+}
+
+void roaring_bitmap64_add(roaring_bitmap_t *r, uint64_t val) {
+   recursive_container_add(&r->high_low_container, 1, val);
+}
+
+void recursive_container_printf(roaring_array_t *ra){
+    printf("[%d", ra->size);
+    uint8_t first = 1;
+    for (int i = 0; i < ra->size; i++){
+        uint8_t typecode;
+        container_t *container = ra_get_container_at_index(ra, i, &typecode);
+        if (typecode == RECURSIVE_CONTAINER_TYPE) {
+            if (first == 1) {
+                first = 0;
+            } else {
+                printf(", ");
+            }
+            recursive_container_printf((roaring_array_t *)container);
+        }
+    }
+    printf("]");
+}
+
+
 #ifdef __cplusplus
 } } }  // extern "C" { namespace roaring {
 #endif
